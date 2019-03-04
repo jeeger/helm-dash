@@ -203,12 +203,30 @@ The Argument DB-PATH should be a string with the sqlite db path."
         "DASH"
       "ZDASH")))
 
+(defun helm-dash-curl-into-file (url file)
+  "Use curl to download URL into local file FILE."
+  (with-temp-buffer
+    (let ((result (call-process "curl" nil (list :file file) nil "-LSs" url)))
+    (when (not (equal result 0))
+      (error (format "Failed to download url %s into temporary file %s. Error: %s" url file result))))))
+
+(defun helm-dash-curl-local-copy (url)
+  "Use curl to download URL into a temporary local file and return the name."
+  (with-temp-buffer
+    (let ((file-name "dash" (make-temp-file))
+	  (result (call-process "curl" nil (list :file file) nil "-LSs" url)))
+      (when (not (equal result 0))
+	(error (format "Failed to download URL %s into temporary file %s. Error: %s" url file result)))
+      file-name)))
+
 (defun helm-dash-read-json-from-url (url)
   "Read and return a JSON object from URL."
-  (with-current-buffer
-      (url-retrieve-synchronously url)
-    (goto-char url-http-end-of-headers)
-    (json-read)))
+  (with-temp-buffer
+    (let ((result (call-process "curl" nil t nil "-LSs" url)))
+      (when (not (equal result 0))
+	(error (format "Failed to read JSON from %s into buffer with error %s" url result)))
+    (goto-char (point-min))
+    (json-read))))
 
 (defun helm-dash-unofficial-docsets ()
   "Return a list of lists with docsets contributed by users.
@@ -278,7 +296,7 @@ Report an error unless a valid docset is selected."
 (defun helm-dash--install-docset (url docset-name)
   "Download a docset from URL and install with name DOCSET-NAME."
   (let ((docset-tmp-path (format "%s%s-docset.tgz" temporary-file-directory docset-name)))
-    (url-copy-file url docset-tmp-path t)
+    (helm-dash-curl-into-file url docset-tmp-path)
     (helm-dash-install-docset-from-file docset-tmp-path)))
 
 (defun helm-dash--ensure-created-docsets-path (docset-path)
@@ -288,7 +306,6 @@ If doesn't exist, it asks to create it."
       (and (y-or-n-p (format "Directory %s does not exist.  Want to create it? "
                              docset-path))
            (mkdir docset-path t))))
-
 
 ;;;###autoload
 (defun helm-dash-install-user-docset (docset-name)
@@ -327,7 +344,7 @@ If doesn't exist, it asks to create it."
   (when (helm-dash--ensure-created-docsets-path (helm-dash-docsets-path))
     (let ((feed-url (format "%s/%s.xml" helm-dash-docsets-url docset-name))
           (feed-tmp-path (format "%s%s-feed.xml" temporary-file-directory docset-name)))
-      (url-copy-file feed-url feed-tmp-path t)
+      (helm-dash-curl-into-file feed-url feed-tmp-path)
       (helm-dash--install-docset (helm-dash-get-docset-url feed-tmp-path) docset-name))))
 
 ;;;###autoload
