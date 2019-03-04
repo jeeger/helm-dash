@@ -213,10 +213,10 @@ The Argument DB-PATH should be a string with the sqlite db path."
 (defun helm-dash-curl-local-copy (url)
   "Use curl to download URL into a temporary local file and return the name."
   (with-temp-buffer
-    (let ((file-name "dash" (make-temp-file))
-	  (result (call-process "curl" nil (list :file file) nil "-LSs" url)))
+    (let* ((file-name (make-temp-file "dash"))
+	  (result (call-process "curl" nil (list :file file-name) nil "-LSs" url)))
       (when (not (equal result 0))
-	(error (format "Failed to download URL %s into temporary file %s. Error: %s" url file result)))
+	(error (format "Failed to download URL %s into temporary file %s. Error: %s" url file-name result)))
       file-name)))
 
 (defun helm-dash-read-json-from-url (url)
